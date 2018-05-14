@@ -332,6 +332,21 @@ class GameEngine(logging_object.LoggingObject):
                     else:
                         # rooms are meant to stay in order
                         self.resources[res_path] = new_resources
+                for res_file in res_json_files:
+                    self.info("Import {}".format(res_file))
+                    with open(res_file, "r") as json_f:
+                        new_resources = res_type.load_from_json(json_f, self)
+                    if res_path != "rooms":
+                        with logging_object.Indented(self):
+                            for res in new_resources:
+                                # if multiple resources have the same name, the
+                                # last one read in will override the others
+                                self.debug("{}".format(res))
+                                self._fix_file_path(res_path, res)
+                                self.resources[res_path][res.name] = res
+                    else:
+                        # rooms are meant to stay in order
+                        self.resources[res_path] = new_resources
             os.chdir(topdir)
 
     def execute_action(self, action, an_event, instance=None):
