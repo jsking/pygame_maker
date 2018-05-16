@@ -8,6 +8,7 @@ implement sound resources
 
 import os.path
 import pygame
+import json
 import yaml
 
 
@@ -27,91 +28,6 @@ class Sound(object):
         "voice"
     ]
     DEFAULT_SOUND_PREFIX = "snd_"
-
-    @staticmethod
-    def load_from_yaml(yaml_stream, unused=None):
-        """
-        Create a new sound from a YAML-formatted file.  Expected YAML format::
-
-            - sound_name1:
-                filename: <sound_file_path>
-                sound_type: <type>
-                preload: true|false
-            - sound_name2:
-                ...
-
-        Check each key against known Sound parameters, and use only those
-        parameters to initalize a new sound.
-
-        :param yaml_stream: A stream containing YAML-formatted text
-        :type yaml_stream: file-like
-        :param unused: This is a placeholder, since other load_from_yaml()
-            resource methods take an additional argument
-        :return: A list of new sound instances, one for each listed in the
-            YAML stream that pass basic checks; if none are found, returns an
-            empty list
-        :rtype: list
-        """
-        new_sound_list = []
-        yaml_info = yaml.load(yaml_stream)
-        if yaml_info:
-            for top_level in yaml_info:
-                sound_args = {}
-                sound_name = list(top_level.keys())[0]
-                yaml_info_hash = top_level[sound_name]
-                if 'filename' in list(yaml_info_hash.keys()):
-                    sound_args['filename'] = yaml_info_hash['filename']
-                if 'sound_type' in list(yaml_info_hash.keys()):
-                    sound_args['sound_type'] = yaml_info_hash['sound_type']
-                if 'preload' in list(yaml_info_hash.keys()):
-                    sound_args['preload'] = yaml_info_hash['preload']
-                new_sound_list.append(Sound(sound_name, **sound_args))
-                new_sound_list[-1].check()
-        return new_sound_list
-       
-    @staticmethod
-    def load_from_yaml(yaml_stream, unused=None):
-        """
-        Create a new sound from a JSON-formatted file.  Expected YAML format::
-
-            "sound_name1": {
-                "filename": <sound_file_path>
-                "sound_type": <type>
-                "preload": true|false
-            },
-            "sound_name1": {
-                ...
-            },
-            ...
-            
-        Check each key against known Sound parameters, and use only those
-        parameters to initalize a new sound.
-
-        :param yaml_stream: A stream containing YAML-formatted text
-        :type yaml_stream: file-like
-        :param unused: This is a placeholder, since other load_from_yaml()
-            resource methods take an additional argument
-        :return: A list of new sound instances, one for each listed in the
-            YAML stream that pass basic checks; if none are found, returns an
-            empty list
-        :rtype: list
-        """
-        new_sound_list = []
-        yaml_info = yaml.load(yaml_stream)
-        if yaml_info:
-            for top_level in yaml_info:
-                sound_args = {}
-                sound_name = list(top_level.keys())[0]
-                yaml_info_hash = top_level[sound_name]
-                if 'filename' in list(yaml_info_hash.keys()):
-                    sound_args['filename'] = yaml_info_hash['filename']
-                if 'sound_type' in list(yaml_info_hash.keys()):
-                    sound_args['sound_type'] = yaml_info_hash['sound_type']
-                if 'preload' in list(yaml_info_hash.keys()):
-                    sound_args['preload'] = yaml_info_hash['preload']
-                new_sound_list.append(Sound(sound_name, **sound_args))
-                new_sound_list[-1].check()
-        return new_sound_list
 
     def __init__(self, sound_name=None, **kwargs):
         """
@@ -159,6 +75,66 @@ class Sound(object):
         if "preload" in kwargs:
             self.preload = (kwargs["preload"] is True)  # convert to boolean
 
+    @staticmethod
+    def load_from_data(data_info, unused=None):
+        """
+        Create a new sound from a JSON/YAML-formatted file.
+        
+        Expected JSON format::
+        
+        [
+            {
+                "sound_name1": {
+                  "filename": "<sound_file_path>",
+                  "sound_type": "<type>",
+                  "preload": "true|false"
+                }
+            },
+            {
+                "sound_name2": {
+                    ...
+                }
+            },
+            ...
+        ]
+        
+        Expected YAML format::
+
+        - sound_name1:
+            filename: <sound_file_path>
+            sound_type: <type>
+            preload: true|false
+        - sound_name2:
+                ...
+        
+        Check each key against known Sound parameters, and use only those
+        parameters to initalize a new sound.
+
+        :param data_obj: A dict containing the loaded JSON/YAML data
+        :type data_obj: Dictionary
+        :param unused: This is a placeholder, since other load_from_yaml()
+            resource methods take an additional argument
+        :return: A list of new sound instances, one for each listed in the
+            YAML stream that pass basic checks; if none are found, returns an
+            empty list
+        :rtype: list
+        """
+        new_sound_list = []
+        for top_level in data_info:
+            sound_args = {}
+            sound_name = list(top_level.keys())[0]
+            data_info_hash = top_level[sound_name]
+            if 'filename' in list(data_info_hash.keys()):
+                sound_args['filename'] = data_info_hash['filename']
+            if 'sound_type' in list(data_info_hash.keys()):
+                sound_args['sound_type'] = data_info_hash['sound_type']
+            if 'preload' in list(data_info_hash.keys()):
+                sound_args['preload'] = data_info_hash['preload']
+            new_sound_list.append(Sound(sound_name, **sound_args))
+            new_sound_list[-1].check()
+        return new_sound_list
+        
+        
     def setup(self):
         """
         Preload the sound if preload is set.  Must be done after
@@ -177,8 +153,7 @@ class Sound(object):
             if self.filename is None:
                 raise SoundException("SoundException: No sound filename provided.")
             if not os.path.exists(self.filename):
-                raise SoundException("SoundException: Sound file '{}' not found.".format(
-                    self.filename))
+                raise SoundException("SoundException: Sound file '{}' not found in directory '{}'.".format(self.filename, os.getcwd()	))
             self.audio = pygame.mixer.Sound(self.filename)
             self.loaded = True
 

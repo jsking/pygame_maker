@@ -1,0 +1,12 @@
+[
+  {
+    "snd_explosion": {
+      "filename": "explosion.wav"
+    }
+  },
+  {
+    "snd_pop": {
+      "filename": "Pop.wav"
+    }
+  }
+]

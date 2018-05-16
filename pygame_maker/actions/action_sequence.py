@@ -458,7 +458,7 @@ class ActionSequence(object):
     FIRST_ITEM_RE = re.compile(r"^\s*([^ ])")
 
     @staticmethod
-    def load_sequence_from_yaml_obj(sequence_repr):
+    def load_sequence_from_data_obj(sequence_repr):
         """
         Create an event action sequence from its YAML representation.
         The expected format is as follows::
@@ -466,7 +466,7 @@ class ActionSequence(object):
           [{<action_name>: { <action_param>:<action_value>, .. }, ..., ]
 
         :param sequence_repr: The YAML object containing action sequence data
-        :type sequence_repr: yaml.load() result
+        :type sequence_repr: data.load() result
         :return: The action sequence described in the YAML object
         :rtype: ActionSequence
         """
@@ -509,7 +509,7 @@ class ActionSequence(object):
             if next_action is not None:
                 yield next_action
 
-    def to_yaml(self, indent=0):
+    def to_data(self, indent=0):
         """
         Produce the YAML representation of the action sequence.
 
@@ -519,10 +519,10 @@ class ActionSequence(object):
         :rtype: str
         """
         action_list = self.main_block.get_action_list()
-        sequence_yaml = ""
+        sequence_data = ""
         for action in action_list:
-            action_yaml_lines = action.to_yaml(indent).splitlines()
-            for idx, aline in enumerate(action_yaml_lines):
+            action_data_lines = action.to_data(indent).splitlines()
+            for idx, aline in enumerate(action_data_lines):
                 if idx == 0:
                     sline = str(aline)
                     minfo = self.FIRST_ITEM_RE.search(aline)
@@ -533,10 +533,10 @@ class ActionSequence(object):
                         sline = "{}- {}".format(aline[0:mpos], aline[mpos:])
                     else:
                         sline = "- {}".format(aline)
-                    sequence_yaml += "{}\n".format(sline)
+                    sequence_data += "{}\n".format(sline)
                 else:
-                    sequence_yaml += "  {}\n".format(aline)
-        return sequence_yaml
+                    sequence_data += "  {}\n".format(aline)
+        return sequence_data
 
     def pretty_print(self):
         """Print out properly-indented action sequence strings."""

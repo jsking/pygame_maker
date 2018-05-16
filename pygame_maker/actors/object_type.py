@@ -195,71 +195,73 @@ class ObjectType(logging_object.LoggingObject):
     object_type_registry = []
 
     @classmethod
-    def register_object_type(cls, object_type):
+    def register_object_type(self, object_type):
         """
         Register object type subclasses, so load_from_yaml() can recognize the
-        object types named in YAML files and create them.
+        object types named in JSON/YAML files and create them.
 
         :param object_type: The new ObjectType subclass
         :type object_type: ObjectType
         """
-        cls.object_type_registry.append(object_type)
+        self.object_type_registry.append(object_type)
 
     @classmethod
-    def gen_kwargs_from_yaml_obj(cls, obj_name, obj_yaml, game_engine):
+    def gen_kwargs_from_data_obj(self, obj_name, data_obj, game_engine):
         """
-        Create a kwargs dict from the YAML parameters describing an object
+        Create a kwargs dict from the JSON/YAML parameters describing an object
         type.
 
         Every ObjectType knows how to interpret event action sequences.
 
-        :param obj_yaml: The yaml.load() generated object
+        :param data_obj: The data.load() generated object
         :return: A dict mapping known parameters to the values defined in the
-            YAML object
+            JSON/YAML object
         :rtype: dict
         """
         kwargs = {"event_action_sequences": {}}
-        if "events" in list(obj_yaml.keys()):
-            # print("Found '{}', passing {} to load..".format(kwarg, obj_yaml[kwarg]))
-            for ev_seq in obj_yaml["events"]:
+        
+        
+        if "events" in list(data_obj.keys()):
+            # print("Found '{}', passing {} to load..".format(kwarg, data_obj[kwarg]))
+            for ev_seq in data_obj["events"]:
                 game_engine.debug("{}: create event sequence from '{}'".
-                                  format(obj_name, obj_yaml['events'][ev_seq]))
+                                  format(obj_name, data_obj['events'][ev_seq]))
                 kwargs["event_action_sequences"][ev_seq] = \
-                    action_sequence.ActionSequence.load_sequence_from_yaml_obj(
-                        obj_yaml['events'][ev_seq])
+                    action_sequence.ActionSequence.load_sequence_from_data_obj(
+                        data_obj['events'][ev_seq])
                 game_engine.debug("Loaded sequence {}:".format(ev_seq))
                 if game_engine.logger.level <= logging.DEBUG:
                     kwargs["event_action_sequences"][ev_seq].pretty_print()
         return kwargs
 
     @classmethod
-    def load_from_yaml_obj(cls, yaml_obj, game_engine):
+    def load_from_data_obj(self, data_obj, game_engine):
         """
         Create an object type from an object returned by yaml.load().
 
-        :param yaml_stream: A file or stream containing the YAML string data
-        :type yaml_stream: file-like
+        :param data_obj: A dict containing the loaded JSON/YAML data
+        :type data_obj: Dictionary
         :param game_engine: A reference to the main game engine
         :type game_engine: GameEngine
-        :return: A new ObjectType with YAML-defined properties
+        :return: A new ObjectType with JSON/YAML-defined properties
         :type: :py:class:`ObjectType`
         """
         new_object_list = []
-        for top_level in yaml_obj:
+        for top_level in data_obj:
             # hash of 1 key, the object name
             obj_name = list(top_level.keys())[0]
             # 'events' key contains event -> action sequence mappings
-            obj_yaml = top_level[obj_name]
-            kwargs = cls.gen_kwargs_from_yaml_obj(obj_name, obj_yaml, game_engine)
-            print("Creating new obj '{}' of type {}".format(obj_name, cls.__name__))
-            new_cls = cls(obj_name, game_engine, **kwargs)
-            new_object_list.append(new_cls)
+            data_obj = top_level[obj_name]
+            kwargs = self.gen_kwargs_from_data_obj(obj_name, data_obj, game_engine)
+            print("Creating new obj '{}' of type {}".format(obj_name, self.__name__))
+            new_self = self(obj_name, game_engine, **kwargs)	
+            new_object_list.append(new_self)
         return new_object_list
 
     @classmethod
-    def load_from_yaml(cls, yaml_stream, game_engine):
+    def load_from_data(self, obj_data, game_engine):
         """
-        Create an object type list from a YAML-formatted file.
+        Create an object type list from a JSON/YAML-formatted file.
         Expected format::
 
             obj_type1:
@@ -276,27 +278,26 @@ class ObjectType(logging_object.LoggingObject):
             obj_type2:
             ...
 
-        For a description of the action sequence YAML format, see
+        For a description of the action sequence JSON/YAML format, see
         :py:meth:`~pygame_maker.actions.action_sequence.ActionSequence.load_sequence_from_yaml_obj`
 
         Each obj_typeN must match a registered object type's name.
 
-        :param yaml_stream: A file or stream containing the YAML string data
+        :param yaml_stream: A file or stream containing the JSON/YAML string data
         :type yaml_stream: file-like
         :param game_engine: A reference to the main game engine
         :type game_engine: GameEngine
-        :return: A new ObjectType with YAML-defined properties
+        :return: A new ObjectType with JSON/YAML-defined properties
         :type: :py:class:`ObjectType`
         """
         new_object_list = []
-        yaml_repr = yaml.load(yaml_stream)
-        if yaml_repr is not None:
-            for obj_type_name in list(yaml_repr.keys()):
-                for reg_obj_type in cls.object_type_registry:
+        if obj_data is not None:
+            for obj_type_name in list(obj_data.keys()):
+                for reg_obj_type in self.object_type_registry:
                     # print("Compare {} with {}".format(obj_type_name, reg_obj_type.__name__))
                     if obj_type_name == reg_obj_type.__name__:
-                        new_object_list += reg_obj_type.load_from_yaml_obj(
-                            yaml_repr[obj_type_name], game_engine)
+                        new_object_list += reg_obj_type.load_from_data_obj(
+                            obj_data[obj_type_name], game_engine)
                         break
         return new_object_list
 
@@ -358,7 +359,7 @@ class ObjectType(logging_object.LoggingObject):
             for ev_name in ev_dict:
                 if not isinstance(ev_dict[ev_name], action_sequence.ActionSequence):
                     raise ObjectTypeException
-                self[ev_name] = ev_dict[ev_name]
+                self[str(ev_name)] = ev_dict[ev_name]
 
     def add_instance_to_delete_list(self, instance):
         """
@@ -799,7 +800,7 @@ class CollideableObjectType(ManagerObjectType):
       14. Blending RGB Minimum
       15. Blending RGB Maximum
       
-    Expected YAML format for CollideableObjectType::
+    Expected JSON/YAML format for CollideableObjectType::
 
         - obj_name1:
             visible: True | False
@@ -816,7 +817,7 @@ class CollideableObjectType(ManagerObjectType):
         - obj_name2:
         ...
 
-    For a description of the action sequence YAML format, see
+    For a description of the action sequence JSON/YAML format, see
     :py:meth:`~pygame_maker.actions.action_sequence.ActionSequence.load_sequence_from_yaml_obj`
     """
     #: Default object visibility
@@ -831,8 +832,8 @@ class CollideableObjectType(ManagerObjectType):
     DEFAULT_BLEND_MODE = 0
 
     @classmethod
-    def gen_kwargs_from_yaml_obj(cls, obj_name, obj_yaml, game_engine):
-        kwargs = super(CollideableObjectType, cls).gen_kwargs_from_yaml_obj(obj_name, obj_yaml,
+    def gen_kwargs_from_data_obj(self, obj_name, data_obj, game_engine):
+        kwargs = super(CollideableObjectType, self).gen_kwargs_from_data_obj(obj_name, data_obj,
                                                                             game_engine)
         kwargs.update({
             "visible": CollideableObjectType.DEFAULT_VISIBLE,
@@ -841,16 +842,16 @@ class CollideableObjectType(ManagerObjectType):
             "sprite": CollideableObjectType.DEFAULT_SPRITE_RESOURCE,
             "blend_mode": CollideableObjectType.DEFAULT_BLEND_MODE,
         })
-        if "visible" in list(obj_yaml.keys()):
-            kwargs["visible"] = (obj_yaml["visible"] is True)
-        if "solid" in list(obj_yaml.keys()):
-            kwargs["solid"] = (obj_yaml["solid"] is True)
-        if "depth" in list(obj_yaml.keys()):
-            kwargs["depth"] = int(obj_yaml["depth"])
-        if "sprite" in list(obj_yaml.keys()):
-            kwargs["sprite"] = str(obj_yaml["sprite"])
-        if "blend_mode" in obj_yaml.keys():
-            kwargs["blend_mode"] = str(obj_yaml["blend_mode"])
+        if "visible" in list(data_obj.keys()):
+            kwargs["visible"] = (data_obj["visible"] is True)
+        if "solid" in list(data_obj.keys()):
+            kwargs["solid"] = (data_obj["solid"] is True)
+        if "depth" in list(data_obj.keys()):
+            kwargs["depth"] = int(data_obj["depth"])
+        if "sprite" in list(data_obj.keys()):
+            kwargs["sprite"] = str(data_obj["sprite"])
+        if "blend_mode" in data_obj.keys():
+            kwargs["blend_mode"] = str(data_obj["blend_mode"])
         return kwargs
 
     def __init__(self, object_name, game_engine, **kwargs):
@@ -921,7 +922,7 @@ class CollideableObjectType(ManagerObjectType):
                 instance.visible = is_visible
 
     def to_yaml(self):
-        """Return the YAML string representing this object type."""
+        """Return the JSON/YAML string representing this object type."""
         yaml_str = "- {}:\n".format(self.name)
         yaml_str += "    visible: {}\n".format(self.visible)
         yaml_str += "    solid: {}\n".format(self.solid)

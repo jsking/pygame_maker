@@ -170,7 +170,7 @@ class ObjectSprite(object):
     DEFAULT_SPRITE_PREFIX = "spr_"
 
     @staticmethod
-    def load_from_yaml(sprite_yaml_stream, game_engine):
+    def load_from_data(data_info, game_engine):
         """
         Create a new sprite from a YAML-formatted file.  Checks each key
         against known ObjectSprite parameters, and uses only those
@@ -189,55 +189,53 @@ class ObjectSprite(object):
             - spr_name2:
                 ...
 
-        :param sprite_yaml_stream: File or stream object containing YAML-
-            formatted data
-        :type sprite_yaml_stream: File-like object
+        :param data_obj: A dict containing the loaded JSON/YAML data
+        :type data_obj: Dictionary
         :return: An empty list, if the YAML-defined sprite(s) is (are) invalid,
             or a list of new sprites, for those with YAML fields that pass
             basic checks
         :rtype: list
         """
         new_sprite_list = []
-        yaml_info = yaml.load(sprite_yaml_stream)
-        if yaml_info:
-            for top_level in yaml_info:
-                sprite_args = {}
-                sprite_name = list(top_level.keys())[0]
-                yaml_info_hash = top_level[sprite_name]
-                if 'filename' in yaml_info_hash:
-                    sprite_args['filename'] = yaml_info_hash['filename']
-                if 'smooth_edges' in yaml_info_hash:
-                    sprite_args['smooth_edges'] = yaml_info_hash['smooth_edges']
-                if 'preload_texture' in yaml_info_hash:
-                    sprite_args['preload_texture'] = yaml_info_hash['preload_texture']
-                if 'transparency_pixel' in yaml_info_hash:
-                    sprite_args['transparency_pixel'] = yaml_info_hash['transparency_pixel']
-                if 'origin' in yaml_info_hash:
-                    sprite_args['origin'] = yaml_info_hash['origin']
-                if 'collision_type' in yaml_info_hash:
-                    sprite_args['collision_type'] = yaml_info_hash['collision_type']
-                if 'bounding_box_type' in yaml_info_hash:
-                    sprite_args['bounding_box_type'] = yaml_info_hash['bounding_box_type']
-                if 'manual_bounding_box_rect' in yaml_info_hash:
-                    sprite_args['manual_bounding_box_rect'] = \
-                        yaml_info_hash['manual_bounding_box_rect']
-                if 'custom_subimage_columns' in yaml_info_hash:
-                    sprite_args['custom_subimage_columns'] = \
-                        yaml_info_hash['custom_subimage_columns']
-                new_sprite = None
-                try:
-                    new_sprite = ObjectSprite(sprite_name, **sprite_args)
-                except (ValueError, ObjectSpriteException) as exc:
-                    game_engine.warn("Skipping YAML ObjectSprite '{}' due to error: {}".
-                                     format(sprite_name, exc))
-                    continue
-                try:
-                    new_sprite.check()
-                except ObjectSpriteException as exc:
-                    game_engine.warn("Skipping YAML ObjectSprite '{}' due to error: {}".
-                                     format(sprite_name, exc))
-                    continue
-                new_sprite_list.append(new_sprite)
+        for sprite_data in data_info:
+            sprite_args = {}
+            sprite_name = list(sprite_data.keys())[0]
+            
+            data_info_dict = sprite_data[sprite_name]
+            if 'filename' in data_info_dict:
+                sprite_args['filename'] = str(data_info_dict['filename'])
+            if 'smooth_edges' in data_info_dict:
+                sprite_args['smooth_edges'] = str(data_info_dict['smooth_edges'])
+            if 'preload_texture' in data_info_dict:
+                sprite_args['preload_texture'] = str(data_info_dict['preload_texture'])
+            if 'transparency_pixel' in data_info_dict:
+                sprite_args['transparency_pixel'] = data_info_dict['transparency_pixel']
+            if 'origin' in data_info_dict:
+                sprite_args['origin'] = data_info_dict['origin']
+            if 'collision_type' in data_info_dict:
+                sprite_args['collision_type'] = str(data_info_dict['collision_type'])
+            if 'bounding_box_type' in data_info_dict:
+                sprite_args['bounding_box_type'] = str(data_info_dict['bounding_box_type'])
+            if 'manual_bounding_box_rect' in data_info_dict:
+                sprite_args['manual_bounding_box_rect'] = \
+                    data_info_dict['manual_bounding_box_rect']
+            if 'custom_subimage_columns' in data_info_dict:
+                sprite_args['custom_subimage_columns'] = \
+                    data_info_dict['custom_subimage_columns']
+            new_sprite = None
+            try:
+                new_sprite = ObjectSprite(sprite_name, **sprite_args)
+            except (ValueError, ObjectSpriteException) as exc:
+                game_engine.warn("Skipping ObjectSprite '{}' due to error: {}".
+                                 format(sprite_name, exc))
+                continue
+            try:
+                new_sprite.check()
+            except ObjectSpriteException as exc:
+                game_engine.warn("Skipping ObjectSprite '{}' due to error: {}".
+                                 format(sprite_name, exc))
+                continue
+            new_sprite_list.append(new_sprite)
         return new_sprite_list
 
     def __init__(self, name=None, **kwargs):
@@ -660,7 +658,7 @@ class ObjectSprite(object):
 
     def check(self):
         """
-        Run all validity tests.  Used by the load_from_yaml() method to
+        Run all validity tests.  Used by the load_from_data() method to
         ensure the YAML defines valid sprite attributes.
 
         :return: True if the sprite attributes passed validity tests, or False

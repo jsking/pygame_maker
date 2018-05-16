@@ -54,7 +54,7 @@ class Room(logging_object.LoggingObject):
     }
 
     @staticmethod
-    def load_from_yaml(yaml_stream, game_engine):
+    def load_from_data(data_info, game_engine):
         """
         Create room(s) from a YAML-formatted file.
         Expected format (missing fields will receive default values)::
@@ -85,8 +85,8 @@ class Room(logging_object.LoggingObject):
                         init_code: |
                           init_code_block
 
-        :param yaml_stream: The stream containing YAML-formatted strings
-        :type yaml_stream: file-like
+        :param data_info: A dict containing the loaded JSON/YAML data
+        :type data_info: Dictionary
         :param game_engine: The game engine instance, which allows each Room
             instance to find other game resources
         :type game_engine: GameEngine
@@ -94,18 +94,16 @@ class Room(logging_object.LoggingObject):
         :rtype: list
         """
         new_room_list = []
-        yaml_repr = yaml.load(yaml_stream)
-        if yaml_repr:
-            for top_level in yaml_repr:
-                kwargs = {}
-                room_name = list(top_level.keys())[0]
-                room_yaml = top_level[room_name]
-                for attr in list(Room.ATTRIBUTES_TABLE.keys()):
-                    if attr in list(room_yaml.keys()):
-                        kwargs[attr] = room_yaml[attr]
-                if 'object_instances' in list(room_yaml.keys()):
-                    kwargs['object_instances'] = room_yaml['object_instances']
-                new_room_list.append(Room(room_name, game_engine, **kwargs))
+        for top_level in data_info:
+            kwargs = {}
+            room_name = list(top_level.keys())[0]
+            room_data = top_level[room_name]
+            for attr in list(Room.ATTRIBUTES_TABLE.keys()):
+                if attr in list(room_data.keys()):
+                    kwargs[attr] = room_data[attr]
+            if 'object_instances' in list(room_data.keys()):
+                kwargs['object_instances'] = room_data['object_instances']
+            new_room_list.append(Room(room_name, game_engine, **kwargs))
         return new_room_list
 
     def __init__(self, name, game_engine, **kwargs):
@@ -216,6 +214,7 @@ class Room(logging_object.LoggingObject):
             for attr in list(self.ATTRIBUTES_TABLE.keys()):
                 if attr in kwargs:
                     attr_type = self.ATTRIBUTES_TABLE[attr]
+                    print(type(kwargs[attr]))
                     if attr_type != bool:
                         setattr(self, attr, attr_type(kwargs[attr]))
                     else:

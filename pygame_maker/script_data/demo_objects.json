@@ -1,0 +1,96 @@
+{
+  "CollideableObjectType": [
+    {
+      "obj_ball": {
+        "visible": true,
+        "solid": false,
+        "depth": 0,
+        "sprite": "spr_ball",
+        "events": {
+          "outside_room": [
+            {
+              "if_sound_is_playing": {
+                "sound": "snd_explosion",
+                "invert": true
+              }
+            },
+            {
+              "play_sound": {
+                "sound": "snd_explosion",
+                "loop": false
+              }
+            },
+            {
+              "destroy_object": {
+                "apply_to": "self"
+              }
+            }
+          ],
+          "collision_obj_poker": [
+            {
+              "play_sound": {
+                "sound": "snd_pop"
+              }
+            },
+            {
+              "destroy_object": {
+                "apply_to": "self"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "obj_poker": {
+        "visible": true,
+        "solid": false,
+        "depth": 0,
+        "sprite": "spr_poker",
+        "events": {
+          "normal_step": [
+            {
+              "execute_code": {
+                "apply_to": "self",
+                "code": "position.x = mouse.x\nposition.y = mouse.y\n"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "ManagerObjectType": [
+    {
+      "obj_manager": {
+        "visible": false,
+        "events": {
+          "normal_step": [
+            {
+              "set_variable_value": {
+                "variable": "chance",
+                "value": "=randint(100)"
+              }
+            },
+            {
+              "if_variable_value": {
+                "variable": "chance",
+                "test": "less_than",
+                "value": 5
+              }
+            },
+            {
+              "create_object_with_velocity": {
+                "object": "obj_ball",
+                "position.x": "=randint(screen_width)",
+                "position.y": 0,
+                "speed": 1,
+                "direction": 180
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -10,10 +10,12 @@ Pygame maker game engine module.
 import os
 import logging
 import logging.config
+import json
 import yaml
 import pygame
 from pygame_maker.support import logging_object
 from pygame_maker.support import css_to_style
+from pygame_maker.support import json_byteified
 from pygame_maker.actors import object_sprite
 from pygame_maker.sounds import sound
 from pygame_maker.actors import object_type
@@ -23,6 +25,7 @@ from pygame_maker.events import event
 from pygame_maker.events import event_engine
 from pygame_maker.logic import language_engine
 
+json_load_byteified = json_byteified.json_load_byteified
 
 class GameEngineException(Exception):
     """Raised when a game has no rooms."""
@@ -143,7 +146,8 @@ class GameEngine(logging_object.LoggingObject):
             },
         },
     }
-    GAME_SETTINGS_FILE = "game_settings.yaml"
+    GAME_SETTINGS_FILE_JSON = "game_settings.json"
+    GAME_SETTINGS_FILE_YAML = "game_settings.yaml"
     GAME_ENGINE_ACTIONS = [
         "play_sound",
         "create_object",
@@ -222,8 +226,96 @@ class GameEngine(logging_object.LoggingObject):
     def load_game_settings(self):
         """
         Collect the settings for the game itself, expected to be found in a
-        file in the base game directory named ``game_settings.yaml``.
-
+        file in the base game directory named ``game_settings.json`` or ``game_settings.yaml``.
+        
+        The JSON format follows::
+        
+          "game_name": "<name>",
+          "screen_dimensions": [
+            "<width>",
+            "<height>"
+          ],
+          "frames_per_second": "<positive integer>",
+          "stylesheet": "<name of CSS-formatted file>",
+          "logging_config": {
+            "version": 1,
+            "formatters": {
+              "normal": {
+                "format": "%(name)s [%(levelname)s]:%(message)s"
+              },
+              "timestamped": {
+                "format": "%(asctime)s - %(name)s [%(levelname)s]:%(message)s"
+              }
+            },
+            "handlers": {
+              "console": {
+                "class": "logging.StreamHandler",
+                "level": "WARNING",
+                "formatter": "normal",
+                "stream": "ext://sys.stdout"
+              }
+            }
+          },
+        # "uncomment the lines below starting with 'file":' to create a log file
+        # "remember to change the 'handlers":' lines below to add the file handler, E.G.:
+        # "handlers": [console, file]
+        #    "file":
+        #      "class": logging.FileHandler
+        #      "level": WARNING
+        #      "formatter": timestamped
+        #      "filename": pygame_maker_game_engine.log
+        #      "mode": w
+          "loggers": {
+            "GameEngine": {
+              "level": "INFO",
+              "handlers": [
+                "console"
+              ]
+            },
+            "CodeBlock": {
+              "level": "INFO",
+              "handlers": [
+                "console"
+              ]
+            },
+            "LanguageEngine": {
+              "level": "INFO",
+              "handlers": [
+                "console"
+              ]
+            },
+            "EventEngine": {
+              "level": "INFO",
+              "handlers": [
+                "console"
+              ]
+            },
+            "ObjectType": {
+              "level": "INFO",
+              "handlers": [
+                "console"
+              ]
+            },
+            "ObjectInstance": {
+              "level": "INFO",
+              "handlers": [
+                "console"
+              ]
+            },
+            "Room": {
+              "level": "INFO",
+              "handlers": [
+                "console"
+              ]
+            },
+            "CSSStyleParser": {
+              "level": "INFO",
+              "handlers": [
+                "console"
+              ]
+            }
+          }
+        
         The YAML format follows::
 
             game_name: <name>
@@ -278,13 +370,22 @@ class GameEngine(logging_object.LoggingObject):
                   level: INFO
                   handlers: [console]
         """
-        if os.path.exists(self.GAME_SETTINGS_FILE):
-            with open(self.GAME_SETTINGS_FILE, "r") as yaml_f:
-                yaml_info = yaml.load(yaml_f)
-                if yaml_info:
-                    for yaml_key in list(yaml_info.keys()):
-                        if yaml_key in self.game_settings:
-                            self.game_settings[yaml_key] = yaml_info[yaml_key]
+        
+#        if os.path.exists(self.GAME_SETTINGS_FILE_JSON) and os.path.exists(self.GAME_SETTINGS_FILE_YAML):
+#            self.warn("JSON and YAML game settings files both present, defaulting to JSON")
+        
+        if os.path.exists(self.GAME_SETTINGS_FILE_JSON):
+            with open(self.GAME_SETTINGS_FILE_JSON, "r") as json_text:
+                data_info = json_load_byteified(json_text)
+        elif os.path.exists(self.GAME_SETTINGS_FILE_YAML):
+            with open(self.GAME_SETTINGS_FILE_YAML, "r") as yaml_text:
+                data_info = yaml.load(yaml_text)
+                
+        if data_info:
+            for data_key in list(data_info.keys()):
+                if data_key in self.game_settings:
+                    self.game_settings[data_key] = data_info[data_key]
+
 
     def _fix_file_path(self, subdir, resource):
         if hasattr(resource, 'filename'):
@@ -292,62 +393,58 @@ class GameEngine(logging_object.LoggingObject):
             if isinstance(resource.filename, str) and "/" not in resource.filename:
                 resource.filename = "{}/{}".format(subdir, resource.filename)
 
+
     def load_game_resources(self):
         """
         Bring in resource YAML files from their expected directories:
         ``sprites/``, ``backgrounds/``, ``sounds/``, ``objects/``, and
         ``rooms/``
         """
-        topdir = os.getcwd()
-        for res_path, res_type in self.RESOURCE_TABLE:
-            self.info("Loading {}..".format(res_path))
-            if not os.path.exists(res_path):
+        root_directory = os.getcwd()
+        for resource_path, resource_type in self.RESOURCE_TABLE:
+            self.info("Loading {}..".format(resource_path))
+            if not os.path.exists(resource_path):
                 continue
             # resource directories are expected to contain YAML descriptions
             #  for each of their respective resource types.  Sprites and sounds
             #  may also contain image or sound files, respectively, so filter
             #  out files with other extensions.  Any file name(s) in the
             #  resource directories ending in .yaml or .yml will be processed.
-            res_files = os.listdir(res_path)
-            res_yaml_files = []
-            for resf in res_files:
-                if resf.endswith('.yaml') or resf.endswith('.yml'):
-                    res_yaml_files.append(resf)
-            # need to chdir, since the filenames found in YAML resource
-            #  files are assumed to be relative to the YAML resource's path
-            os.chdir(res_path)
-            with logging_object.Indented(self):
-                for res_file in res_yaml_files:
-                    self.info("Import {}".format(res_file))
-                    with open(res_file, "r") as yaml_f:
-                        new_resources = res_type.load_from_yaml(yaml_f, self)
-                    if res_path != "rooms":
+            resource_files = os.listdir(resource_path)
+            os.chdir(resource_path)
+            
+            for resource_file in resource_files:
+                self.info("Importing {}".format(resource_file))
+                
+                if resource_file.endswith('.json'):
+                    type = "json"
+                if resource_file.endswith('.yaml') or resource_file.endswith('.yml'):
+                    type = "yaml"
+                
+                if resource_file.endswith('.json') or resource_file.endswith('.yaml') or resource_file.endswith('.yml'):
+                    data_info = {}
+                    with open(resource_file, "r") as file_text:
+                        if type == "json":
+                            data_info = json_load_byteified(file_text)
+                            self.debug("Recognized as JSON file")
+                        if type == "yaml":
+                            data_info = yaml.load(file_text)
+                            self.debug("Recognized as YAML file")
+                            
+                        self.debug("Parsed file's contents:\n {}".format(json.dumps(data_info, indent=4)))
+                        new_resources = resource_type.load_from_data(data_info, self)
+                    if resource_path != "rooms":
                         with logging_object.Indented(self):
                             for res in new_resources:
                                 # if multiple resources have the same name, the
                                 # last one read in will override the others
                                 self.debug("{}".format(res))
-                                self._fix_file_path(res_path, res)
-                                self.resources[res_path][res.name] = res
+                                self._fix_file_path(resource_path, res)
+                                self.resources[resource_path][res.name] = res
                     else:
                         # rooms are meant to stay in order
-                        self.resources[res_path] = new_resources
-                for res_file in res_json_files:
-                    self.info("Import {}".format(res_file))
-                    with open(res_file, "r") as json_f:
-                        new_resources = res_type.load_from_json(json_f, self)
-                    if res_path != "rooms":
-                        with logging_object.Indented(self):
-                            for res in new_resources:
-                                # if multiple resources have the same name, the
-                                # last one read in will override the others
-                                self.debug("{}".format(res))
-                                self._fix_file_path(res_path, res)
-                                self.resources[res_path][res.name] = res
-                    else:
-                        # rooms are meant to stay in order
-                        self.resources[res_path] = new_resources
-            os.chdir(topdir)
+                        self.resources[resource_path] = new_resources
+            os.chdir(root_directory)
 
     def execute_action(self, action, an_event, instance=None):
         """
@@ -555,28 +652,29 @@ class GameEngine(logging_object.LoggingObject):
         """
         Call the ``setup()`` method of every resource type that supplies one.
         """
-        topdir = os.getcwd()
-        if os.path.exists('sprites'):
+        root_directory = os.getcwd()
+        sprite_dir = os.path.join(root_directory, 'sprites')
+        if os.path.exists(sprite_dir):
             self.info("Preloading sprite images..")
             with logging_object.Indented(self):
                 for spr in list(self.resources['sprites'].keys()):
                     self.info("{}".format(spr))
                     self.resources['sprites'][spr].setup()
-        sound_dir = os.path.join(topdir, 'sounds')
+        sound_dir = os.path.join(root_directory, 'sounds')
         if os.path.exists(sound_dir):
             self.info("Preloading sound files..")
             with logging_object.Indented(self):
                 for snd in list(self.resources['sounds'].keys()):
                     self.info("{}".format(snd))
                     self.resources['sounds'][snd].setup()
-        background_dir = os.path.join(topdir, 'backgrounds')
+        background_dir = os.path.join(root_directory, 'backgrounds')
         if os.path.exists(background_dir):
             self.info("Preloading background images..")
             with logging_object.Indented(self):
                 for bkg in list(self.resources['backgrounds'].keys()):
                     self.info("{}".format(bkg))
                     self.resources['backgrounds'][bkg].setup()
-        os.chdir(topdir)
+        os.chdir(root_directory)
 
     def load_room(self, room_n):
         """

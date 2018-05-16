@@ -71,7 +71,7 @@ class Background(object):
     DEFAULT_NAME = "bkg_"
 
     @staticmethod
-    def load_from_yaml(yaml_stream, unused=None):
+    def load_from_data(data_repr, unused=None):
         """
         Create background(s) from a YAML-formatted file.
         Expected format (missing fields will receive default values)::
@@ -89,42 +89,41 @@ class Background(object):
                 horizontal_padding: <# >= 0>
                 vertical_padding: <# >= 0>
 
-        :param yaml_stream: A stream containing YAML-formatted strings
-        :type yaml_stream: file-like
+        :param data_repr: A dict containing the loaded JSON/YAML data
+        :type data_repr: Dictionary
         :param unused: A placeholder, since other load_from_yaml() methods
             receive a game engine handle here
         :return: A list of new Background instances for all valid backgrounds
             defined in the YAML stream
         """
         new_background_list = []
-        yaml_repr = yaml.load(yaml_stream)
-        if yaml_repr:
-            for top_level in yaml_repr:
+        if data_repr:
+            for top_level in data_repr:
                 kwargs = {}
                 bkg_name = list(top_level.keys())[0]
-                bkg_yaml = top_level[bkg_name]
-                if 'filename' in list(bkg_yaml.keys()):
-                    kwargs['filename'] = bkg_yaml['filename']
-                if 'smooth_edges' in list(bkg_yaml.keys()):
-                    kwargs['smooth_edges'] = (bkg_yaml['smooth_edges'] is True)
-                if 'preload_texture' in list(bkg_yaml.keys()):
-                    kwargs['preload_texture'] = (bkg_yaml['preload_texture'] is True)
-                if 'transparent' in list(bkg_yaml.keys()):
-                    kwargs['transparent'] = (bkg_yaml['transparent'] is True)
-                if 'tileset' in list(bkg_yaml.keys()):
-                    kwargs['tileset'] = (bkg_yaml['tileset'] is True)
-                if 'tile_width' in list(bkg_yaml.keys()):
-                    kwargs['tile_width'] = bkg_yaml['tile_width']
-                if 'tile_height' in list(bkg_yaml.keys()):
-                    kwargs['tile_height'] = bkg_yaml['tile_height']
-                if 'horizontal_offset' in list(bkg_yaml.keys()):
-                    kwargs['horizontal_offset'] = bkg_yaml['horizontal_offset']
-                if 'vertical_offset' in list(bkg_yaml.keys()):
-                    kwargs['vertical_offset'] = bkg_yaml['vertical_offset']
-                if 'horizontal_padding' in list(bkg_yaml.keys()):
-                    kwargs['horizontal_padding'] = bkg_yaml['horizontal_padding']
-                if 'vertical_padding' in list(bkg_yaml.keys()):
-                    kwargs['vertical_padding'] = bkg_yaml['vertical_padding']
+                bkg_data = top_level[bkg_name]
+                if 'filename' in list(bkg_data.keys()):
+                    kwargs['filename'] = bkg_data['filename']
+                if 'smooth_edges' in list(bkg_data.keys()):
+                    kwargs['smooth_edges'] = (bkg_data['smooth_edges'] is True)
+                if 'preload_texture' in list(bkg_data.keys()):
+                    kwargs['preload_texture'] = (bkg_data['preload_texture'] is True)
+                if 'transparent' in list(bkg_data.keys()):
+                    kwargs['transparent'] = (bkg_data['transparent'] is True)
+                if 'tileset' in list(bkg_data.keys()):
+                    kwargs['tileset'] = (bkg_data['tileset'] is True)
+                if 'tile_width' in list(bkg_data.keys()):
+                    kwargs['tile_width'] = bkg_data['tile_width']
+                if 'tile_height' in list(bkg_data.keys()):
+                    kwargs['tile_height'] = bkg_data['tile_height']
+                if 'horizontal_offset' in list(bkg_data.keys()):
+                    kwargs['horizontal_offset'] = bkg_data['horizontal_offset']
+                if 'vertical_offset' in list(bkg_data.keys()):
+                    kwargs['vertical_offset'] = bkg_data['vertical_offset']
+                if 'horizontal_padding' in list(bkg_data.keys()):
+                    kwargs['horizontal_padding'] = bkg_data['horizontal_padding']
+                if 'vertical_padding' in list(bkg_data.keys()):
+                    kwargs['vertical_padding'] = bkg_data['vertical_padding']
                 new_background_list.append(Background(bkg_name, **kwargs))
         return new_background_list
 
